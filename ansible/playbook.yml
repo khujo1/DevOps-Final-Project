@@ -1,0 +1,36 @@
+---
+- name: Deploy Multi-Service App
+  hosts: localhost
+  vars:
+    project_dir: "{{ playbook_dir }}/.."
+  tasks:
+    - name: Ensure Trivy is installed
+      homebrew:
+        name: trivy
+        state: present
+      become: no  
+      when: ansible_os_family == "Darwin" 
+
+    - name: Build Docker images
+      command: docker-compose build
+      args:
+        chdir: "{{ project_dir }}"
+      register: build_result
+      changed_when: "'successfully' in build_result.stdout"
+
+    - name: Scan frontend image
+      command: trivy image frontend:latest
+      register: frontend_scan
+      ignore_errors: yes
+
+    - name: Scan backend image
+      command: trivy image backend:latest
+      register: backend_scan
+      ignore_errors: yes
+
+    - name: Start Docker Compose
+      command: docker-compose up -d
+      args:
+        chdir: "{{ project_dir }}"
+      register: compose_result
+      changed_when: "'Starting' in compose_result.stdout"
