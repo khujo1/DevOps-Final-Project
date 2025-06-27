@@ -3,6 +3,7 @@
   hosts: localhost
   vars:
     project_dir: "{{ playbook_dir }}/.."
+    project_name: "devops-final-project"
   tasks:
     - name: Ensure Trivy is installed
       homebrew:
@@ -18,15 +19,63 @@
       register: build_result
       changed_when: "'successfully' in build_result.stdout"
 
-    - name: Scan frontend image
-      command: trivy image frontend:latest
-      register: frontend_scan
+    - name: Wait for images to be built
+      pause:
+        seconds: 3
+
+    - name: Check what images were actually created
+      shell: 'docker images --format "{{ "{{" }}.Repository{{ "}}" }}:{{ "{{" }}.Tag{{ "}}" }}" | grep -E "(frontend|backend)"'
+      register: actual_images
       ignore_errors: yes
 
-    - name: Scan backend image
-      command: trivy image backend:latest
-      register: backend_scan
+    - name: Display actual image names
+      debug:
+        msg: "Images found: {{ actual_images.stdout_lines | default([]) }}"
+
+    - name: Check if explicit image names exist
+      shell: docker images --format "{{ "{{" }}.Repository{{ "}}" }}" | grep -x "frontend\|backend"
+      register: explicit_images
       ignore_errors: yes
+
+    - name: Scan frontend image (if explicitly named)
+      command: trivy image frontend:latest --format table
+      register: frontend_scan_explicit
+      ignore_errors: yes
+      when: "'frontend' in explicit_images.stdout"
+
+    - name: Scan backend image (if explicitly named)
+      command: trivy image backend:latest --format table
+      register: backend_scan_explicit
+      ignore_errors: yes
+      when: "'backend' in explicit_images.stdout"
+
+    - name: Scan frontend image (auto-generated name)
+      shell: |
+        IMAGE_NAME=$(docker images --format "{{ "{{" }}.Repository{{ "}}" }}:{{ "{{" }}.Tag{{ "}}" }}" | grep frontend | head -1)
+        if [ ! -z "$IMAGE_NAME" ]; then
+          echo "Scanning frontend image: $IMAGE_NAME"
+          trivy image "$IMAGE_NAME" --format table
+          trivy image "$IMAGE_NAME" --format json --output "{{ project_dir }}/trivy-frontend-results.json"
+        else
+          echo "No frontend image found"
+        fi
+      register: frontend_scan_auto
+      ignore_errors: yes
+      when: "'frontend' not in explicit_images.stdout"
+
+    - name: Scan backend image (auto-generated name)
+      shell: |
+        IMAGE_NAME=$(docker images --format "{{ "{{" }}.Repository{{ "}}" }}:{{ "{{" }}.Tag{{ "}}" }}" | grep backend | head -1)
+        if [ ! -z "$IMAGE_NAME" ]; then
+          echo "Scanning backend image: $IMAGE_NAME"
+          trivy image "$IMAGE_NAME" --format table
+          trivy image "$IMAGE_NAME" --format json --output "{{ project_dir }}/trivy-backend-results.json"
+        else
+          echo "No backend image found"
+        fi
+      register: backend_scan_auto
+      ignore_errors: yes
+      when: "'backend' not in explicit_images.stdout"
 
     - name: Start Docker Compose
       command: docker-compose up -d
@@ -34,3 +83,27 @@
         chdir: "{{ project_dir }}"
       register: compose_result
       changed_when: "'Starting' in compose_result.stdout"
+
+    - name: Wait for services to start
+      pause:
+        seconds: 10
+
+    - name: Check service status
+      command: docker-compose ps
+      args:
+        chdir: "{{ project_dir }}"
+      register: service_status
+      ignore_errors: yes
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          === DEPLOYMENT SUMMARY ===
+          Build Status: {{ "SUCCESS" if build_result.rc == 0 else "FAILED" }}
+          Images Found: {{ actual_images.stdout_lines | default([]) | join(', ') }}
+          Frontend Scan: {{ "COMPLETED" if frontend_scan_explicit.rc == 0 or frontend_scan_auto.rc == 0 else "FAILED/SKIPPED" }}
+          Backend Scan: {{ "COMPLETED" if backend_scan_explicit.rc == 0 or backend_scan_auto.rc == 0 else "FAILED/SKIPPED" }}
+          Services Status: {{ "RUNNING" if compose_result.rc == 0 else "FAILED" }}
+          
+          Service Details:
+          {{ service_status.stdout | default('Unable to get service status') }}

@@ -1,38 +1,69 @@
 {
-  "dashboard": {
-    "id": null,
-    "title": "System Metrics",
-    "panels": [
-      {
-        "id": 1,
-        "title": "CPU Usage",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "rate(process_cpu_seconds_total{job='frontend'}[5m])",
-            "legendFormat": "Frontend"
-          },
-          {
-            "expr": "rate(process_cpu_seconds_total{job='backend'}[5m])",
-            "legendFormat": "Backend"
-          }
-        ]
+  "id": null,
+  "title": "System Metrics",
+  "tags": ["monitoring"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "title": "CPU Usage",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
       },
-      {
-        "id": 2,
-        "title": "Memory Usage",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "process_resident_memory_bytes{job='frontend'}",
-            "legendFormat": "Frontend"
-          },
-          {
-            "expr": "process_resident_memory_bytes{job='backend'}",
-            "legendFormat": "Backend"
-          }
-        ]
+      "targets": [
+        {
+          "expr": "rate(process_cpu_seconds_total{job=\"frontend\"}[5m]) * 100",
+          "legendFormat": "Frontend CPU %",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(process_cpu_seconds_total{job=\"backend\"}[5m]) * 100",
+          "legendFormat": "Backend CPU %",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        }
       }
-    ]
-  }
+    },
+    {
+      "id": 2,
+      "title": "Memory Usage",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes{job=\"frontend\"} / 1024 / 1024",
+          "legendFormat": "Frontend Memory (MB)",
+          "refId": "A"
+        },
+        {
+          "expr": "process_resident_memory_bytes{job=\"backend\"} / 1024 / 1024",
+          "legendFormat": "Backend Memory (MB)",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decbytes"
+        }
+      }
+    }
+  ],
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "refresh": "5s"
 }
