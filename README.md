@@ -61,7 +61,7 @@ docker-compose ps
   - Prometheus metrics endpoint (`/metrics`)
   - Request counting and latency tracking
 
-![alt text](image-1.png)
+![alt text](screenshots/image-1.png)
 
 ### Backend Service
 - **Port**: 5001
@@ -72,7 +72,7 @@ docker-compose ps
   - Prometheus metrics endpoint (`/metrics`)
   - Real-time system statistics
 
-![alt text](image-2.png)
+![alt text](screenshots/image-2.png)
 
 ### Monitoring Stack
 
@@ -85,7 +85,7 @@ docker-compose ps
   - Backend service metrics
   - Self-monitoring
 
-![alt text](image-3.png)
+![alt text](screenshots/image-3.png)
 
 #### Grafana
 - **Port**: 3000
@@ -98,7 +98,7 @@ docker-compose ps
   - Real-time system metrics visualization
   - CPU and memory usage monitoring
 
-![alt text](image.png)
+![alt text](screenshots/image.png)
 
 ## 🔧 Configuration
 
